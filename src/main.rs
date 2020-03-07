@@ -1,6 +1,4 @@
-use std::fs;
 use std::io::prelude::*;
-use std::path::PathBuf;
 use std::process::Command;
 
 use blurz::bluetooth_adapter::BluetoothAdapter;
@@ -37,7 +35,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     println!("connecting ...");
                     let attempt = device.connect(5000);
                     match attempt {
-                        Ok(success) => {
+                        Ok(_) => {
                             println!("success");
                             // Run the command if we have one.
                             if let Some(command) = &config_device.command {
@@ -97,7 +95,7 @@ fn load_devices() -> Result<Config, Box<dyn std::error::Error>> {
 
     let mut file = std::fs::File::open(&config)?;
     let mut contents = String::new();
-    file.read_to_string(&mut contents);
+    file.read_to_string(&mut contents)?;
 
     Ok(toml::from_str(&contents)?)
 }
