@@ -1,0 +1,12 @@
+[package]
+name = "beryl"
+version = "0.1.0"
+authors = ["Brian Dawn <brian.t.dawn@gmail.com>"]
+edition = "2018"
+
+# See more kys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+blurz = "0.4"
+clap = "2.33"
+dirs = "2.0"
