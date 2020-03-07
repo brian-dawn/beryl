@@ -1,5 +1,9 @@
 # beryl
 
+Also available on source hut:
+
+    https://git.sr.ht/~brian-dawn/beryl
+
 Auto reconnect to select bluetooth devices and run commands when they do.
 
 Requires `bluez`.
