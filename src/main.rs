@@ -1,16 +1,20 @@
 use std::fs;
 use std::io::prelude::*;
 use std::path::PathBuf;
+use std::process::Command;
 
 use blurz::bluetooth_adapter::BluetoothAdapter;
 use blurz::bluetooth_device::BluetoothDevice;
 use blurz::bluetooth_session::BluetoothSession;
 
-fn run() -> Result<(), Box<std::error::Error>> {
-    let allowed_devices = load_devices()?;
+use serde::Deserialize;
 
-    if allowed_devices.is_empty() {
-        println!("please add some devices to ~/.config/beryl/devices");
+fn run() -> Result<(), Box<dyn std::error::Error>> {
+    let config = load_devices()?;
+    println!("{:?}", config);
+
+    if config.devices.is_empty() {
+        println!("please add some devices to ~/.config/beryl/config.toml");
         std::process::exit(1);
     }
 
@@ -23,21 +27,40 @@ fn run() -> Result<(), Box<std::error::Error>> {
         for d in devices {
             println!("found {}", &d);
 
-            // Only if our allow strings match anything in this list.
-            if !allowed_devices.iter().any(|allow| d.contains(allow)) {
-                continue;
-            }
+            let maybe_config_device = config
+                .devices
+                .iter()
+                .find(|device| d.contains(device.id.trim()));
+            if let Some(config_device) = maybe_config_device {
+                let device = BluetoothDevice::new(&session, d.to_string());
+                if !device.is_connected()? {
+                    println!("connecting ...");
+                    let attempt = device.connect(5000);
+                    match attempt {
+                        Ok(success) => {
+                            println!("success");
+                            // Run the command if we have one.
+                            if let Some(command) = &config_device.command {
+                                println!("running {}", command);
+                                
+                                let parts:Vec<String> = command.split_whitespace().map(|i| i.to_owned()).collect();
+                                if parts.is_empty() {
+                                    println!("invalid command");
+                                    continue;
+                                }
+                                let mut command = Command::new(parts[0].clone());
+                                for part in parts.iter().skip(1) {
+                                    command.arg(part);
+                                }
+                                command.output()?;
 
-            let device = BluetoothDevice::new(&session, d.to_string());
-            if !device.is_connected()? {
-                println!("connecting ...");
-                let attempt = device.connect(5000);
-                match attempt {
-                    Ok(success) => {
-                        println!("success");
-                    }
-                    Err(err) => {
-                        println!("error {:?}", err);
+
+                                  
+                            }
+                        }
+                        Err(err) => {
+                            println!("error {:?}", err);
+                        }
                     }
                 }
             }
@@ -47,7 +70,18 @@ fn run() -> Result<(), Box<std::error::Error>> {
     }
 }
 
-fn load_devices() -> Result<Vec<String>, Box<std::error::Error>> {
+#[derive(Debug, Deserialize)]
+struct Device {
+    id: String,
+    command: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Config {
+    devices: Vec<Device>,
+}
+
+fn load_devices() -> Result<Config, Box<dyn std::error::Error>> {
     let mut config = dirs::config_dir().ok_or("couldn't get config dir")?;
     config.push("beryl");
 
@@ -55,7 +89,7 @@ fn load_devices() -> Result<Vec<String>, Box<std::error::Error>> {
         std::fs::create_dir_all(&config)?;
     }
 
-    config.push("devices");
+    config.push("config.toml");
 
     if !config.exists() {
         std::fs::File::create(&config)?;
@@ -65,11 +99,7 @@ fn load_devices() -> Result<Vec<String>, Box<std::error::Error>> {
     let mut contents = String::new();
     file.read_to_string(&mut contents);
 
-    Ok(contents
-        .lines()
-        .into_iter()
-        .map(|line| line.trim().to_owned())
-        .collect())
+    Ok(toml::from_str(&contents)?)
 }
 
 fn main() {
