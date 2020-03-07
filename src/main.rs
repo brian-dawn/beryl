@@ -18,8 +18,10 @@ fn run() -> Result<(), Box<std::error::Error>> {
     let adapter = BluetoothAdapter::init(&session)?;
 
     loop {
+        println!("listening...");
         let devices = adapter.get_device_list()?;
         for d in devices {
+            println!("found {}", &d);
 
             // Only if our allow strings match anything in this list.
             if !allowed_devices.iter().any(|allow| d.contains(allow)) {
@@ -41,7 +43,7 @@ fn run() -> Result<(), Box<std::error::Error>> {
             }
         }
 
-        std::thread::sleep(std::time::Duration::from_millis(3000));
+        std::thread::sleep(std::time::Duration::from_millis(5000));
     }
 }
 
